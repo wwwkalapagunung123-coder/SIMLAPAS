@@ -259,6 +259,9 @@ class _PetugasScreenState extends State<PetugasScreen> {
     );
   }
 
+  static const Color _primaryColor = Color(0xFF0F766E);
+  static const Color _textDarkColor = Color(0xFF101828);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -266,35 +269,11 @@ class _PetugasScreenState extends State<PetugasScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SIMLAPAS / Petugas',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Petugas',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF101828),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Kelola petugas, jabatan, dan penugasan blok sesuai kewenangan.',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          // 1. Header Halaman Petugas
+          _buildHeader(),
           const SizedBox(height: 24),
+
+          // 2. Konten Ringkasan Statistik & Daftar Petugas
           Expanded(
             child: FutureBuilder<List<Map<String, Object?>>>(
               future: DatabaseHelper.instance.getAllUsers(),
@@ -309,94 +288,11 @@ class _PetugasScreenState extends State<PetugasScreen> {
                 }
 
                 final listPetugas = snapshot.data ?? [];
-
-                int totalPetugas = listPetugas.length;
-                int jumlahKalapas = listPetugas
-                    .where((p) => p['role'] == 'Kepala Lapas')
-                    .length;
-                int jumlahSipir = listPetugas
-                    .where((p) => p['role'] == 'Sipir')
-                    .length;
-
-                // Menghitung petugas yang benar-benar memiliki tugas (tidak '-')
-                int sedangBertugas = listPetugas
-                    .where(
-                      (p) =>
-                          p['blok'] != null &&
-                          p['blok'] != '-' &&
-                          p['blok'] != '',
-                    )
-                    .length;
-
                 return Column(
                   children: [
-                    Row(
-                      children: [
-                        _buildPetugasCard(
-                          'Total petugas',
-                          '$totalPetugas orang',
-                        ),
-                        const SizedBox(width: 16),
-                        _buildPetugasCard(
-                          'Sedang bertugas',
-                          '$sedangBertugas orang',
-                        ),
-                        const SizedBox(width: 16),
-                        _buildPetugasCard(
-                          'Kepala lapas',
-                          '$jumlahKalapas orang',
-                        ),
-                        const SizedBox(width: 16),
-                        _buildPetugasCard('Sipir', '$jumlahSipir orang'),
-                      ],
-                    ),
+                    _buildSummaryCards(listPetugas),
                     const SizedBox(height: 24),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[200]!),
-                        ),
-                        child: listPetugas.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'Belum ada data petugas terdaftar.',
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: listPetugas.length,
-                                itemBuilder: (context, index) {
-                                  final petugas = listPetugas[index];
-                                  final nama =
-                                      petugas['nama']?.toString() ?? '';
-                                  final nip = petugas['nip']?.toString() ?? '';
-                                  final jabatan =
-                                      petugas['role']?.toString() ?? '';
-                                  final blok =
-                                      petugas['blok']?.toString() ?? '-';
-
-                                  // Status label dinamis (jika '-' maka 'Tidak Bertugas')
-                                  final statusLabel =
-                                      (blok == '-' || blok.isEmpty)
-                                      ? 'Tidak Bertugas'
-                                      : 'Bertugas';
-
-                                  return _buildPetugasRow(
-                                    context,
-                                    petugas,
-                                    nama,
-                                    nip,
-                                    jabatan,
-                                    'Reguler',
-                                    blok,
-                                    statusLabel,
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
+                    Expanded(child: _buildPetugasList(context, listPetugas)),
                   ],
                 );
               },
@@ -404,6 +300,99 @@ class _PetugasScreenState extends State<PetugasScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ==========================================
+  // SUB-KOMPONEN UI
+  // ==========================================
+
+  Widget _buildHeader() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'SIMLAPAS / Petugas',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Petugas',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: _textDarkColor,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Kelola petugas, jabatan, dan penugasan blok sesuai kewenangan.',
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCards(List<Map<String, Object?>> listPetugas) {
+    final totalPetugas = listPetugas.length;
+    final jumlahKalapas = listPetugas
+        .where((p) => p['role'] == 'Kepala Lapas')
+        .length;
+    final jumlahSipir = listPetugas.where((p) => p['role'] == 'Sipir').length;
+    final sedangBertugas = listPetugas
+        .where((p) => p['blok'] != null && p['blok'] != '-' && p['blok'] != '')
+        .length;
+
+    return Row(
+      children: [
+        _buildPetugasCard('Total petugas', '$totalPetugas orang'),
+        const SizedBox(width: 16),
+        _buildPetugasCard('Sedang bertugas', '$sedangBertugas orang'),
+        const SizedBox(width: 16),
+        _buildPetugasCard('Kepala lapas', '$jumlahKalapas orang'),
+        const SizedBox(width: 16),
+        _buildPetugasCard('Sipir', '$jumlahSipir orang'),
+      ],
+    );
+  }
+
+  Widget _buildPetugasList(
+    BuildContext context,
+    List<Map<String, Object?>> listPetugas,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: listPetugas.isEmpty
+          ? const Center(child: Text('Belum ada data petugas terdaftar.'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: listPetugas.length,
+              itemBuilder: (context, index) {
+                final petugas = listPetugas[index];
+                final nama = petugas['nama']?.toString() ?? '';
+                final nip = petugas['nip']?.toString() ?? '';
+                final jabatan = petugas['role']?.toString() ?? '';
+                final blok = petugas['blok']?.toString() ?? '-';
+                final statusLabel = (blok == '-' || blok.isEmpty)
+                    ? 'Tidak Bertugas'
+                    : 'Bertugas';
+
+                return _buildPetugasRow(
+                  context,
+                  petugas,
+                  nama,
+                  nip,
+                  jabatan,
+                  'Reguler',
+                  blok,
+                  statusLabel,
+                );
+              },
+            ),
     );
   }
 
@@ -505,7 +494,7 @@ class _PetugasScreenState extends State<PetugasScreen> {
                 icon: const Icon(
                   Icons.edit,
                   size: 18,
-                  color: Color(0xFF0F766E),
+                  color: _primaryColor,
                 ),
                 onPressed: () => _tampilkanFormEditPetugas(context, petugas),
                 tooltip: 'Edit Penugasan Blok & Sel',

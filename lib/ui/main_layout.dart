@@ -46,13 +46,13 @@ class _MainLayoutState extends State<MainLayout> {
 
   late final List<Widget> _pages = [
     DashboardScreen(onNavigate: _navigateTo),
-    NarapidanaScreen(),
-    BlokSelScreen(),
-    PetugasScreen(),
+    const NarapidanaScreen(),
+    const BlokSelScreen(),
+    const PetugasScreen(),
     OperasionalSipirScreen(loggedInUser: widget.loggedInUser),
-    KunjunganScreen(),
-    PersetujuanScreen(),
-    LaporanScreen(),
+    const KunjunganScreen(),
+    const PersetujuanScreen(),
+    const LaporanScreen(),
   ];
 
   void _navigateTo(int index) {
@@ -78,7 +78,21 @@ class _MainLayoutState extends State<MainLayout> {
         if (constraints.maxWidth < 800) {
           return Scaffold(
             appBar: AppBar(
-              title: Text(_menuItems[_selectedIndex].title),
+              title: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.asset(
+                      'lib/gambar/LOGOSIMLAPAS.jpeg',
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(_menuItems[_selectedIndex].title),
+                ],
+              ),
               backgroundColor: const Color(0xFF101828),
               foregroundColor: Colors.white,
             ),
@@ -110,13 +124,27 @@ class _MainLayoutState extends State<MainLayout> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(20),
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Icon(Icons.security, color: Colors.tealAccent),
-                  SizedBox(width: 10),
-                  Text(
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF0F766E)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Image.asset(
+                        'lib/gambar/LOGOSIMLAPAS.jpeg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
                     'SIMLAPAS',
                     style: TextStyle(
                       color: Colors.white,

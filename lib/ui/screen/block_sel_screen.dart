@@ -162,288 +162,290 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // 1. Header & Tombol Tambah Blok
+          _buildHeader(context),
+          const SizedBox(height: 24),
+
+          // 2. Daftar Blok Horisontal
+          SizedBox(height: 170, child: _buildBlockList()),
+          const SizedBox(height: 24),
+
+          // 3. Daftar Penghuni di Blok Terpilih
+          const Text(
+            'Daftar Penghuni di Blok Terpilih (Beserta Penempatan Sel)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Expanded(child: _buildResidentSection()),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // SUB-KOMPONEN UI
+  // ==========================================
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'SIMLAPAS / Blok & Sel',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Blok & sel',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF101828),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Pantau penempatan, kapasitas sel, dan narapidana di setiap blok.',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                  ],
+              Text(
+                'SIMLAPAS / Blok & Sel',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Blok & sel',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF101828),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () => _tampilkanDialogTambahBlok(context),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Tambah blok'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
-                ),
+              const SizedBox(height: 4),
+              Text(
+                'Pantau penempatan, kapasitas sel, dan narapidana di setiap blok.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => _tampilkanDialogTambahBlok(context),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Tambah blok'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0F766E),
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
 
-          // Daftar Blok Dinamis dari Database SQLite
-          SizedBox(
-            height: 170,
-            child: FutureBuilder<List<Map<String, Object?>>>(
-              future: DatabaseHelper.instance.getAllBlok(),
+  Widget _buildBlockList() {
+    return FutureBuilder<List<Map<String, Object?>>>(
+      future: DatabaseHelper.instance.getAllBlok(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Gagal memuat daftar blok: ${snapshot.error}'),
+          );
+        }
+
+        final listBlok = snapshot.data ?? [];
+        if (listBlok.isEmpty) {
+          return const Center(
+            child: Text('Belum ada data blok. Klik "Tambah blok" di atas.'),
+          );
+        }
+
+        if (selectedBlok == null && listBlok.isNotEmpty) {
+          selectedBlok = listBlok[0]['nama_blok']?.toString();
+        }
+
+        return ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: listBlok.length,
+          itemBuilder: (context, index) {
+            final blok = listBlok[index];
+            final namaBlok = blok['nama_blok']?.toString() ?? '';
+            final maks = int.tryParse(blok['maks_penghuni'].toString()) ?? 48;
+            final jmlSel = int.tryParse(blok['kapasitas_sel'].toString()) ?? 8;
+            final keamanan = blok['tingkat_keamanan']?.toString() ?? 'Menengah';
+            final isSelected = (selectedBlok == namaBlok);
+
+            return _buildBlockCard(
+              namaBlok: namaBlok,
+              maks: maks,
+              jmlSel: jmlSel,
+              keamanan: keamanan,
+              isSelected: isSelected,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBlockCard({
+    required String namaBlok,
+    required int maks,
+    required int jmlSel,
+    required String keamanan,
+    required bool isSelected,
+  }) {
+    return FutureBuilder<int>(
+      future: DatabaseHelper.instance.getJumlahNapiByBlok(namaBlok),
+      builder: (context, napiSnapshot) {
+        final jumlahNapi = napiSnapshot.data ?? 0;
+        final persentase = maks > 0 ? ((jumlahNapi / maks) * 100).round() : 0;
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              selectedBlok = namaBlok;
+            });
+          },
+          child: Container(
+            width: 220,
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF0F766E) : Colors.grey[200]!,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      namaBlok,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      '$persentase%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[700],
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$jumlahNapi / $maks Penghuni',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$jmlSel sel · keamanan $keamanan',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildResidentSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: selectedBlok == null
+          ? const Center(child: Text('Pilih salah satu blok di atas.'))
+          : FutureBuilder<List<Map<String, Object?>>>(
+              future: DatabaseHelper.instance.getNarapidanaByBlok(
+                selectedBlok!,
+              ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text('Gagal memuat daftar blok: ${snapshot.error}'),
+                    child: Text(
+                      'Gagal memuat penghuni blok: ${snapshot.error}',
+                    ),
                   );
                 }
-
-                // Jika database blok masih kosong, beri data bawaan awal
-                final listBlok = snapshot.data ?? [];
-                if (listBlok.isEmpty) {
-                  return const Center(
+                final listNapi = snapshot.data ?? [];
+                if (listNapi.isEmpty) {
+                  return Center(
                     child: Text(
-                      'Belum ada data blok. Klik "Tambah blok" di atas.',
+                      'Belum ada narapidana yang ditempatkan di $selectedBlok.',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
                     ),
                   );
                 }
 
-                if (selectedBlok == null && listBlok.isNotEmpty) {
-                  selectedBlok = listBlok[0]['nama_blok']?.toString();
-                }
-
                 return ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: listBlok.length,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: listNapi.length,
                   itemBuilder: (context, index) {
-                    final blok = listBlok[index];
-                    final namaBlok = blok['nama_blok']?.toString() ?? '';
-                    final maks =
-                        int.tryParse(blok['maks_penghuni'].toString()) ?? 48;
-                    final jmlSel =
-                        int.tryParse(blok['kapasitas_sel'].toString()) ?? 8;
-                    final keamanan =
-                        blok['tingkat_keamanan']?.toString() ?? 'Menengah';
-                    bool isSelected = (selectedBlok == namaBlok);
-
-                    return FutureBuilder<int>(
-                      future: DatabaseHelper.instance.getJumlahNapiByBlok(
-                        namaBlok,
+                    final napi = listNapi[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[200]!),
                       ),
-                      builder: (context, napiSnapshot) {
-                        int jumlahNapi = napiSnapshot.data ?? 0;
-                        int persentase = maks > 0
-                            ? ((jumlahNapi / maks) * 100).round()
-                            : 0;
-
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedBlok = namaBlok;
-                            });
-                          },
-                          child: Container(
-                            width: 220,
-                            margin: const EdgeInsets.only(right: 16),
-                            padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                napi['nama']?.toString() ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                'No. Reg: ${napi['no_reg']}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF0F766E)
-                                    : Colors.grey[200]!,
-                                width: isSelected ? 2 : 1,
+                              color: Colors.teal[50],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Sel: ${napi['sel']}',
+                              style: TextStyle(
+                                color: Colors.teal[800],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      namaBlok,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    Text(
-                                      '$persentase%',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[700],
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '$jumlahNapi / $maks Penghuni',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF101828),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '$jmlSel sel · keamanan $keamanan',
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     );
                   },
                 );
               },
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Bagian Bawah: Menampilkan Daftar Narapidana yang Menghuni Blok yang Dipilih
-          const Text(
-            'Daftar Penghuni di Blok Terpilih (Beserta Penempatan Sel)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: selectedBlok == null
-                  ? const Center(child: Text('Pilih salah satu blok di atas.'))
-                  : FutureBuilder<List<Map<String, Object?>>>(
-                      future: DatabaseHelper.instance.getNarapidanaByBlok(
-                        selectedBlok!,
-                      ),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Text(
-                              'Gagal memuat penghuni blok: ${snapshot.error}',
-                            ),
-                          );
-                        }
-                        final listNapi = snapshot.data ?? [];
-                        if (listNapi.isEmpty) {
-                          return Center(
-                            child: Text(
-                              'Belum ada narapidana yang ditempatkan di $selectedBlok.',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 13,
-                              ),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: listNapi.length,
-                          itemBuilder: (context, index) {
-                            final napi = listNapi[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey[200]!),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        napi['nama']?.toString() ?? '',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      Text(
-                                        'No. Reg: ${napi['no_reg']}',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.teal[50],
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Sel: ${napi['sel']}',
-                                      style: TextStyle(
-                                        color: Colors.teal[800],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

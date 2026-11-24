@@ -73,7 +73,7 @@ void main() {
       await DatabaseHelper.instance.registerUser(
         nama: 'Dina Pratama',
         nip: '12345',
-        password: '12345',
+        password: 'password',
         role: 'Kepala Lapas',
       );
       expect(
@@ -183,6 +183,8 @@ void main() {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Selamat datang kembali'), findsOneWidget);
     final exception = tester.takeException();
+    if (exception != null) debugPrint(exception.toString());
+    if (exception != null) debugPrint(exception.toString());
     expect(exception, isNull, reason: '$exception');
   });
 
@@ -390,6 +392,8 @@ void main() {
       );
       await tester.pump();
       final exception = tester.takeException();
+      if (exception != null) debugPrint(exception.toString());
+      if (exception != null) debugPrint(exception.toString());
       expect(exception, isNull, reason: '${screen.runtimeType}: $exception');
     }
 
