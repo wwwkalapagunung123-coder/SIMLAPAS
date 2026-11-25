@@ -100,6 +100,8 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  static const Color _textDarkColor = Color(0xFF101828);
+
   @override
   Widget build(BuildContext context) {
     final namaPetugas =
@@ -111,68 +113,89 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SIMLAPAS / Operasional Sipir',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Operasional sipir',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Pengelolaan narapidana dan pencatatan insiden untuk $_blokJaga.',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
-          ),
+          // 1. Header Halaman
+          _buildHeader(),
           const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Wrap(
-              spacing: 24,
-              runSpacing: 12,
-              children: [
-                _buildInfoSipir(
-                  'Petugas Bertugas',
-                  '$namaPetugas (NIP: $nipPetugas)',
-                ),
-                _buildInfoSipir('Blok Penjagaan', 'Menjaga khusus $_blokJaga'),
-                _buildInfoSipir(
-                  'Sistem Akses',
-                  'Database Lokal SQLite Terhubung',
-                ),
-              ],
-            ),
-          ),
+
+          // 2. Banner Informasi Petugas Bertugas
+          _buildOfficerBanner(namaPetugas: namaPetugas, nipPetugas: nipPetugas),
           const SizedBox(height: 24),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 900;
-                return Flex(
-                  direction: compact ? Axis.vertical : Axis.horizontal,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 3, child: _buildNarapidanaList()),
-                    SizedBox(width: compact ? 0 : 16, height: compact ? 16 : 0),
-                    Expanded(flex: 2, child: _buildForms()),
-                  ],
-                );
-              },
-            ),
-          ),
+
+          // 3. Area Konten Utama (Daftar Napi & Form Insiden)
+          Expanded(child: _buildMainContent()),
         ],
       ),
+    );
+  }
+
+  // ==========================================
+  // SUB-KOMPONEN UI
+  // ==========================================
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'SIMLAPAS / Operasional Sipir',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Operasional sipir',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: _textDarkColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Pengelolaan narapidana dan pencatatan insiden untuk $_blokJaga.',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOfficerBanner({
+    required String namaPetugas,
+    required String nipPetugas,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 12,
+        children: [
+          _buildInfoSipir('Petugas Bertugas', '$namaPetugas (NIP: $nipPetugas)'),
+          _buildInfoSipir('Blok Penjagaan', 'Menjaga khusus $_blokJaga'),
+          _buildInfoSipir('Sistem Akses', 'Database Lokal SQLite Terhubung'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 900;
+        return Flex(
+          direction: compact ? Axis.vertical : Axis.horizontal,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 3, child: _buildNarapidanaList()),
+            SizedBox(width: compact ? 0 : 16, height: compact ? 16 : 0),
+            Expanded(flex: 2, child: _buildForms()),
+          ],
+        );
+      },
     );
   }
 

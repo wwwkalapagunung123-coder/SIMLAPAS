@@ -71,7 +71,10 @@ class _LaporanScreenState extends State<LaporanScreen> {
                 ),
                 child: Text(
                   laporan,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -89,9 +92,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuat laporan: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal membuat laporan: $e')));
     }
   }
 
@@ -100,7 +103,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
     final penghuniAktif = '${_stats['totalNapiAktif'] ?? 0} orang';
     final kapasitas = '${_stats['totalKapasitas'] ?? 0} tempat';
     final okupansi = '${_stats['okupansiPersen'] ?? 0}%';
-    final petugasBertugas = '${_stats['petugasBertugas'] ?? 0} / ${_stats['totalPetugas'] ?? 0}';
+    final petugasBertugas =
+        '${_stats['petugasBertugas'] ?? 0} / ${_stats['totalPetugas'] ?? 0}';
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -139,7 +143,10 @@ class _LaporanScreenState extends State<LaporanScreen> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.download, size: 16),
                 label: const Text('Buat laporan'),
@@ -184,7 +191,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          _hasilLaporanPolimorfis != null ? 'Laporan Terkini' : 'Siap unduh',
+                          _hasilLaporanPolimorfis != null
+                              ? 'Laporan Terkini'
+                              : 'Siap unduh',
                           style: TextStyle(
                             color: Colors.teal[800],
                             fontSize: 11,
@@ -216,19 +225,28 @@ class _LaporanScreenState extends State<LaporanScreen> {
                       decoration: BoxDecoration(
                         color: Colors.teal[50],
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF0F766E).withAlpha(80)),
+                        border: Border.all(
+                          color: const Color(0xFF0F766E).withAlpha(80),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Ringkasan Polimorfisme (Penjara.buatLaporan()):',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F766E)),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Color(0xFF0F766E),
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             _hasilLaporanPolimorfis!,
-                            style: const TextStyle(fontSize: 14, color: Color(0xFF101828)),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF101828),
+                            ),
                           ),
                         ],
                       ),
@@ -240,7 +258,10 @@ class _LaporanScreenState extends State<LaporanScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildLaporanInfoBox('Penghuni aktif (DB)', penghuniAktif),
+                      _buildLaporanInfoBox(
+                        'Penghuni aktif (DB)',
+                        penghuniAktif,
+                      ),
                       _buildLaporanInfoBox('Kapasitas Total', kapasitas),
                       _buildLaporanInfoBox('Tingkat Okupansi', okupansi),
                       _buildLaporanInfoBox('Petugas bertugas', petugasBertugas),

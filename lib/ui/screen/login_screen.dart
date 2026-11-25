@@ -297,18 +297,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF0F766E,
-                            ).withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: const Color(0xFF0F766E)),
                           ),
-                          child: const Icon(
-                            Icons.security,
-                            color: Colors.tealAccent,
-                            size: 20,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(7),
+                            child: Image.asset(
+                              'lib/gambar/LOGOSIMLAPAS.jpeg',
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),

@@ -471,55 +471,7 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final title = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'SIMLAPAS / Data Narapidana',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Data narapidana',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF101828),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Kelola identitas, penempatan, dan masa tahanan secara langsung dari database.',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                  ),
-                ],
-              );
-              final addButton = ElevatedButton.icon(
-                onPressed: () => _tampilkanFormNarapidana(context),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Tambah Narapidana'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
-                ),
-              );
-
-              if (constraints.maxWidth < 700) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 12), addButton],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: title),
-                  addButton,
-                ],
-              );
-            },
-          ),
+          _buildHeader(context),
           const SizedBox(height: 24),
           Expanded(
             child: Container(
@@ -590,6 +542,58 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const title = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'SIMLAPAS / Data Narapidana',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Data narapidana',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Kelola identitas, penempatan, dan masa tahanan secara langsung dari database.',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        );
+        final addButton = ElevatedButton.icon(
+          onPressed: () => _tampilkanFormNarapidana(context),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Tambah Narapidana'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0F766E),
+            foregroundColor: Colors.white,
+          ),
+        );
+
+        if (constraints.maxWidth < 700) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [title, const SizedBox(height: 12), addButton],
+          );
+        }
+        return Row(
+          children: [
+            const Expanded(child: title),
+            addButton,
+          ],
+        );
+      },
     );
   }
 
