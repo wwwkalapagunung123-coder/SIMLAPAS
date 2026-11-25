@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../helpers/database_helper.dart';
+import '../../controllers/blok_controller.dart';
+import '../../controllers/narapidana_controller.dart';
+import '../../model/block.dart';
+import '../../model/narapidana.dart';
 
 class BlokSelScreen extends StatefulWidget {
   const BlokSelScreen({super.key});
@@ -9,6 +12,8 @@ class BlokSelScreen extends StatefulWidget {
 }
 
 class _BlokSelScreenState extends State<BlokSelScreen> {
+  final BlokController _blokController = BlokController();
+  final NarapidanaController _napiController = NarapidanaController();
   String? selectedBlok;
 
   // Controller untuk form Tambah Blok
@@ -113,15 +118,13 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
                   return;
                 }
 
-                final row = <String, Object?>{
-                  'nama_blok': _namaBlokController.text.trim(),
-                  'kapasitas_sel': kapasitasSel,
-                  'maks_penghuni': maksPenghuni,
-                  'tingkat_keamanan': _keamananPilihan,
-                };
-
                 try {
-                  await DatabaseHelper.instance.insertBlok(row);
+                  await _blokController.tambahBlokBaru(
+                    namaBlok: _namaBlokController.text.trim(),
+                    kapasitasSel: kapasitasSel,
+                    maksPenghuni: maksPenghuni,
+                    tingkatKeamanan: _keamananPilihan,
+                  );
                 } catch (error, stackTrace) {
                   debugPrint('Gagal menyimpan blok: $error\n$stackTrace');
                   if (!mounted || !context.mounted) return;
@@ -207,8 +210,8 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
           // Daftar Blok Dinamis dari Database SQLite
           SizedBox(
             height: 170,
-            child: FutureBuilder<List<Map<String, Object?>>>(
-              future: DatabaseHelper.instance.getAllBlok(),
+            child: FutureBuilder<List<Blok>>(
+              future: _blokController.muatSemuaBlok(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -230,7 +233,7 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
                 }
 
                 if (selectedBlok == null && listBlok.isNotEmpty) {
-                  selectedBlok = listBlok[0]['nama_blok']?.toString();
+                  selectedBlok = listBlok.first.kode;
                 }
 
                 return ListView.builder(
@@ -238,19 +241,14 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
                   itemCount: listBlok.length,
                   itemBuilder: (context, index) {
                     final blok = listBlok[index];
-                    final namaBlok = blok['nama_blok']?.toString() ?? '';
-                    final maks =
-                        int.tryParse(blok['maks_penghuni'].toString()) ?? 48;
-                    final jmlSel =
-                        int.tryParse(blok['kapasitas_sel'].toString()) ?? 8;
-                    final keamanan =
-                        blok['tingkat_keamanan']?.toString() ?? 'Menengah';
+                    final namaBlok = blok.kode;
+                    final maks = blok.maksPenghuni;
+                    final jmlSel = blok.kapasitasSel;
+                    final keamanan = blok.tingkatKeamanan;
                     bool isSelected = (selectedBlok == namaBlok);
 
                     return FutureBuilder<int>(
-                      future: DatabaseHelper.instance.getJumlahNapiByBlok(
-                        namaBlok,
-                      ),
+                      future: _blokController.hitungPenghuniBlok(namaBlok),
                       builder: (context, napiSnapshot) {
                         int jumlahNapi = napiSnapshot.data ?? 0;
                         int persentase = maks > 0
@@ -347,8 +345,8 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
               ),
               child: selectedBlok == null
                   ? const Center(child: Text('Pilih salah satu blok di atas.'))
-                  : FutureBuilder<List<Map<String, Object?>>>(
-                      future: DatabaseHelper.instance.getNarapidanaByBlok(
+                  : FutureBuilder<List<Narapidana>>(
+                      future: _napiController.muatNarapidanaByBlok(
                         selectedBlok!,
                       ),
                       builder: (context, snapshot) {
@@ -400,14 +398,14 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        napi['nama']?.toString() ?? '',
+                                        napi.nama,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
                                         ),
                                       ),
                                       Text(
-                                        'No. Reg: ${napi['no_reg']}',
+                                        'No. Reg: ${napi.noRegistrasi}',
                                         style: TextStyle(
                                           color: Colors.grey[600],
                                           fontSize: 11,
@@ -425,7 +423,7 @@ class _BlokSelScreenState extends State<BlokSelScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'Sel: ${napi['sel']}',
+                                      'Sel: ${napi.selNomor}',
                                       style: TextStyle(
                                         color: Colors.teal[800],
                                         fontWeight: FontWeight.bold,

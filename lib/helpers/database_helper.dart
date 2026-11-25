@@ -38,11 +38,20 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onConfigure: (db) => db.execute('PRAGMA busy_timeout = 5000'),
-      onCreate: (db, version) => _createTables(db),
-      onUpgrade: (db, oldVersion, newVersion) => _createTables(db),
-      onOpen: _ensureUserColumns,
+      onCreate: (db, version) async {
+        await _createTables(db);
+        await _seedInitialData(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await _createTables(db);
+      },
+      onOpen: (db) async {
+        await _createTables(db);
+        await _ensureUserColumns(db);
+        await _seedInitialData(db);
+      },
     );
   }
 
@@ -88,6 +97,17 @@ class DatabaseHelper {
         tingkat_keamanan TEXT NOT NULL
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS kunjungan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nama_pengunjung TEXT NOT NULL,
+        hubungan TEXT NOT NULL,
+        no_reg_napi TEXT NOT NULL,
+        nama_napi TEXT NOT NULL,
+        waktu TEXT NOT NULL,
+        status TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _ensureUserColumns(Database db) async {
@@ -109,6 +129,114 @@ class DatabaseHelper {
           'ALTER TABLE users ADD COLUMN ${entry.key} ${entry.value}',
         );
       }
+    }
+  }
+
+  /// Mengisi data awal ke SQLite jika database masih kosong
+  Future<void> _seedInitialData(Database db) async {
+    // 1. Seed Blok jika kosong
+    final countBlok = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM blok'),
+    ) ?? 0;
+    if (countBlok == 0) {
+      await db.insert('blok', {
+        'nama_blok': 'Blok A',
+        'kapasitas_sel': 8,
+        'maks_penghuni': 48,
+        'tingkat_keamanan': 'Menengah',
+      });
+      await db.insert('blok', {
+        'nama_blok': 'Blok B',
+        'kapasitas_sel': 8,
+        'maks_penghuni': 48,
+        'tingkat_keamanan': 'Menengah',
+      });
+      await db.insert('blok', {
+        'nama_blok': 'Blok C',
+        'kapasitas_sel': 6,
+        'maks_penghuni': 36,
+        'tingkat_keamanan': 'Tinggi',
+      });
+      await db.insert('blok', {
+        'nama_blok': 'Blok Isolasi',
+        'kapasitas_sel': 4,
+        'maks_penghuni': 12,
+        'tingkat_keamanan': 'Maksimal',
+      });
+    }
+
+    // 2. Seed Narapidana jika kosong
+    final countNapi = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM narapidana'),
+    ) ?? 0;
+    if (countNapi == 0) {
+      await db.insert('narapidana', {
+        'no_reg': 'REG-2024-0018',
+        'nama': 'Arif Setiawan',
+        'blok': 'Blok A',
+        'sel': 'Blok A-01',
+        'tanggal_masuk': '2024-01-10',
+        'estimasi_bebas': '2027-01-10',
+        'status': 'Aktif',
+      });
+      await db.insert('narapidana', {
+        'no_reg': 'REG-2024-0026',
+        'nama': 'Rizky Saputra',
+        'blok': 'Blok B',
+        'sel': 'Blok B-01',
+        'tanggal_masuk': '2024-02-15',
+        'estimasi_bebas': '2026-08-15',
+        'status': 'Aktif',
+      });
+      await db.insert('narapidana', {
+        'no_reg': 'REG-2023-0041',
+        'nama': 'Bima Santoso',
+        'blok': 'Blok A',
+        'sel': 'Blok A-02',
+        'tanggal_masuk': '2023-05-20',
+        'estimasi_bebas': '2026-11-20',
+        'status': 'Aktif',
+      });
+      await db.insert('narapidana', {
+        'no_reg': 'REG-2025-0007',
+        'nama': 'Fajar Nugraha',
+        'blok': 'Blok C',
+        'sel': 'Blok C-01',
+        'tanggal_masuk': '2025-03-01',
+        'estimasi_bebas': '2028-03-01',
+        'status': 'Aktif',
+      });
+    }
+
+    // 3. Seed Kunjungan jika kosong
+    final countKunjungan = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM kunjungan'),
+    ) ?? 0;
+    if (countKunjungan == 0) {
+      await db.insert('kunjungan', {
+        'nama_pengunjung': 'Sari Lestari',
+        'hubungan': 'Istri',
+        'no_reg_napi': 'REG-2024-0018',
+        'nama_napi': 'Arif Setiawan',
+        'waktu': '10.00 - 10.30',
+        'status': 'Terjadwal',
+      });
+      await db.insert('kunjungan', {
+        'nama_pengunjung': 'Dewi Santoso',
+        'hubungan': 'Istri',
+        'no_reg_napi': 'REG-2023-0041',
+        'nama_napi': 'Bima Santoso',
+        'waktu': '08.00 - 08.30',
+        'status': 'Selesai',
+      });
+      await db.insert('kunjungan', {
+        'nama_pengunjung': 'Lina Nugraha',
+        'hubungan': 'Ibu',
+        'no_reg_napi': 'REG-2025-0007',
+        'nama_napi': 'Fajar Nugraha',
+        'waktu': '09.20 - 10.00',
+        'status': 'Berlangsung',
+      });
     }
   }
 
@@ -184,6 +312,19 @@ class DatabaseHelper {
         'role': role,
         'blok': blok ?? '-',
       },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateUserBlok({
+    required int id,
+    required String blok,
+  }) async {
+    final db = await database;
+    return db.update(
+      'users',
+      {'blok': blok},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -297,5 +438,31 @@ class DatabaseHelper {
       [namaBlok],
     );
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // --- QUERY KUNJUNGAN ---
+  Future<List<Map<String, Object?>>> getAllKunjungan() async {
+    final db = await database;
+    return db.query('kunjungan', orderBy: 'id DESC');
+  }
+
+  Future<int> insertKunjungan(Map<String, Object?> row) async {
+    final db = await database;
+    return db.insert('kunjungan', row);
+  }
+
+  Future<int> updateKunjunganStatus(int id, String status) async {
+    final db = await database;
+    return db.update(
+      'kunjungan',
+      {'status': status},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteKunjungan(int id) async {
+    final db = await database;
+    return db.delete('kunjungan', where: 'id = ?', whereArgs: [id]);
   }
 }

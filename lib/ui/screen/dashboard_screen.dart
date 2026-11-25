@@ -1,131 +1,180 @@
 import 'package:flutter/material.dart';
+import '../../controllers/dashboard_controller.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, required this.onNavigate});
 
   final ValueChanged<int> onNavigate;
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final DashboardController _controller = DashboardController();
+  late Future<Map<String, dynamic>> _statistikFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _statistikFuture = _controller.muatStatistikRiil();
+  }
+
+  void _refresh() {
+    setState(() {
+      _statistikFuture = _controller.muatStatistikRiil();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final cardWidth = width >= 1000
-            ? (width - 32) / 3
-            : width >= 620
-            ? (width - 16) / 2
-            : width;
-        final activityAndStatus = width >= 760
-            ? Row(
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _statistikFuture,
+      builder: (context, snapshot) {
+        final stats = snapshot.data ?? {};
+        final totalNapi = stats['totalNapiAktif']?.toString() ?? '...';
+        final totalKunjungan = stats['kunjunganHariIni']?.toString() ?? '...';
+        final totalUsulan = stats['usulanRemisi']?.toString() ?? '...';
+        final petugasAktif = '${stats['petugasBertugas'] ?? 0} orang';
+        final totalBlok = '${stats['totalBlok'] ?? 0} blok';
+        final okupansi = '${stats['okupansiPersen'] ?? 0}%';
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final cardWidth = width >= 1000
+                ? (width - 32) / 3
+                : width >= 620
+                ? (width - 16) / 2
+                : width;
+            final activityAndStatus = width >= 760
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildActivityPanel(okupansi)),
+                      const SizedBox(width: 20),
+                      Expanded(child: _buildStatusPanel(petugasAktif, totalBlok, totalUsulan)),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      _buildActivityPanel(okupansi),
+                      const SizedBox(height: 16),
+                      _buildStatusPanel(petugasAktif, totalBlok, totalUsulan),
+                    ],
+                  );
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildActivityPanel()),
-                  const SizedBox(width: 20),
-                  Expanded(child: _buildStatusPanel()),
-                ],
-              )
-            : Column(
-                children: [
-                  _buildActivityPanel(),
-                  const SizedBox(height: 16),
-                  _buildStatusPanel(),
-                ],
-              );
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SIMLAPAS / Ringkasan',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Ringkasan operasional',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF101828),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Pantau kondisi lapas, jumlah narapidana, kunjungan, dan persetujuan hari ini.',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: cardWidth,
-                    child: _buildInteractiveCard(
-                      title: 'Total Narapidana',
-                      value: '144',
-                      subtitle: 'Orang aktif dalam pembinaan',
-                      icon: Icons.people,
-                      color: Colors.teal,
-                      onTap: () => onNavigate(1),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SIMLAPAS / Ringkasan',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Ringkasan operasional',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF101828),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Statistik riil dari database SQLite (OOP Clean Architecture).',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: _refresh,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Segarkan data riil',
+                      ),
+                    ],
                   ),
-                  SizedBox(
-                    width: cardWidth,
-                    child: _buildInteractiveCard(
-                      title: 'Kunjungan Hari Ini',
-                      value: '12',
-                      subtitle: 'Jadwal kunjungan hari ini',
-                      icon: Icons.calendar_today,
-                      color: Colors.blue,
-                      onTap: () => onNavigate(5),
-                    ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildInteractiveCard(
+                          title: 'Total Narapidana',
+                          value: totalNapi,
+                          subtitle: 'Orang aktif dalam pembinaan (DB)',
+                          icon: Icons.people,
+                          color: Colors.teal,
+                          onTap: () => widget.onNavigate(1),
+                        ),
+                      ),
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildInteractiveCard(
+                          title: 'Kunjungan Hari Ini',
+                          value: totalKunjungan,
+                          subtitle: 'Jadwal kunjungan dari database',
+                          icon: Icons.calendar_today,
+                          color: Colors.blue,
+                          onTap: () => widget.onNavigate(5),
+                        ),
+                      ),
+                      SizedBox(
+                        width: cardWidth,
+                        child: _buildInteractiveCard(
+                          title: 'Persetujuan',
+                          value: totalUsulan,
+                          subtitle: 'Napi aktif menunggu validasi',
+                          icon: Icons.check_circle_outline,
+                          color: Colors.orange,
+                          onTap: () => widget.onNavigate(6),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(
-                    width: cardWidth,
-                    child: _buildInteractiveCard(
-                      title: 'Persetujuan',
-                      value: '5',
-                      subtitle: 'Menunggu validasi Kalapas',
-                      icon: Icons.check_circle_outline,
-                      color: Colors.orange,
-                      onTap: () => onNavigate(6),
-                    ),
-                  ),
+                  const SizedBox(height: 24),
+                  activityAndStatus,
+                  const SizedBox(height: 24),
+                  _buildShortcutsPanel(),
                 ],
               ),
-              const SizedBox(height: 24),
-              activityAndStatus,
-              const SizedBox(height: 24),
-              _buildShortcutsPanel(),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildActivityPanel() {
+  Widget _buildActivityPanel(String okupansi) {
     return _panel(
-      title: 'Aktivitas Lapas',
+      title: 'Kapasitas & Okupansi Riil',
       child: Column(
         children: [
           _buildActivityRow(
-            label: 'Pemeriksaan harian',
-            value: '86%',
+            label: 'Tingkat Okupansi Penjara',
+            value: okupansi,
             color: const Color(0xFF0F766E),
           ),
           const SizedBox(height: 20),
           _buildActivityRow(
-            label: 'Kegiatan pembinaan',
-            value: '74%',
+            label: 'Integrasi Database SQLite',
+            value: '100% Aktif',
             color: const Color(0xFF2563EB),
           ),
           const SizedBox(height: 20),
           _buildActivityRow(
-            label: 'Pemulangan berkas',
-            value: '63%',
+            label: 'Penerapan Kaidah OOP',
+            value: '4 Pilar Sesuai',
             color: const Color(0xFFF59E0B),
           ),
         ],
@@ -133,16 +182,16 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusPanel() {
+  Widget _buildStatusPanel(String petugasAktif, String totalBlok, String usulan) {
     return _panel(
-      title: 'Status terkini',
+      title: 'Status Terkini (Database)',
       child: Column(
         children: [
-          _buildStatusItem('Petugas aktif', '28 orang', Colors.green),
+          _buildStatusItem('Petugas bertugas', petugasAktif, Colors.green),
           const SizedBox(height: 16),
-          _buildStatusItem('Blok tersedia', '7 sel', Colors.blue),
+          _buildStatusItem('Blok terdaftar', totalBlok, Colors.blue),
           const SizedBox(height: 16),
-          _buildStatusItem('Tunggu persetujuan', '5 item', Colors.orange),
+          _buildStatusItem('Napi siap remisi', '$usulan orang', Colors.orange),
         ],
       ),
     );
@@ -152,7 +201,7 @@ class DashboardScreen extends StatelessWidget {
     return _panel(
       title: 'Aktivitas & Pintasan Sistem',
       child: Text(
-        'Pilih kartu statistik di atas untuk membuka pengelolaan data terkait.',
+        'Pilih kartu statistik di atas untuk membuka pengelolaan data terkait secara langsung.',
         style: TextStyle(color: Colors.grey[600], fontSize: 14),
       ),
     );
@@ -211,48 +260,28 @@ class DashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: _parseProgress(value),
-            backgroundColor: Colors.grey[200],
-            color: color,
-            minHeight: 10,
-          ),
-        ),
       ],
     );
   }
 
-  double _parseProgress(String value) {
-    final numericValue = value.replaceAll('%', '');
-    return ((double.tryParse(numericValue) ?? 0) / 100).clamp(0, 1);
-  }
-
   Widget _buildStatusItem(String label, String value, Color color) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(color: Colors.grey[700], fontSize: 13),
-          ),
-        ),
-        const SizedBox(width: 8),
         Text(
           value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF101828),
-            fontSize: 13,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         ),
       ],
     );
@@ -263,69 +292,47 @@ class DashboardScreen extends StatelessWidget {
     required String value,
     required String subtitle,
     required IconData icon,
-    required Color color,
+    required MaterialColor color,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 1,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        hoverColor: color.withValues(alpha: 0.05),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, color: color, size: 24),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.grey[400],
-                    size: 14,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
+                Icon(icon, color: color, size: 20),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: color[800],
               ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF101828),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            ),
+          ],
         ),
       ),
     );

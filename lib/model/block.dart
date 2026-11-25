@@ -1,39 +1,76 @@
-// file: lib/models/blok.dart
+// file: lib/model/block.dart
 import 'sel.dart';
 
+/// Class Blok merepresentasikan blok hunian di dalam penjara (Komposisi & Agregasi).
 class Blok {
-  final String kode;
-  final String tingkatKeamanan;
+  final int? id;
+  final String _kode;
+  final String _tingkatKeamanan;
+  final int kapasitasSel;
+  final int maksPenghuni;
   final List<Sel> _daftarSel = [];
 
-  Blok({required this.kode, required this.tingkatKeamanan});
-  List<Sel> get daftarSel => _daftarSel;
-
-  // Menambahkan sel ke dalam blok
-  void tambahSel(Sel sel) {
-    _daftarSel.add(sel);
+  Blok({
+    this.id,
+    required String kode,
+    required String tingkatKeamanan,
+    this.kapasitasSel = 8,
+    this.maksPenghuni = 48,
+  }) : _kode = kode,
+       _tingkatKeamanan = tingkatKeamanan {
+    buatDaftarSel(kapasitasSel);
   }
 
-  // Mengembalikan daftar sel yang masih kosong
+  String get kode => _kode;
+  String get tingkatKeamanan => _tingkatKeamanan;
+  List<Sel> get daftarSel => List.unmodifiable(_daftarSel);
+
+  void tambahSel(Sel sel) {
+    if (!_daftarSel.contains(sel)) _daftarSel.add(sel);
+  }
+
+  void buatDaftarSel(int jumlahSel, {int kapasitasPerSel = 6}) {
+    _daftarSel.clear();
+    if (_kode.isEmpty || jumlahSel <= 0) return;
+
+    for (var i = 0; i < jumlahSel; i++) {
+      final nomorSel = '$_kode-${(i + 1).toString().padLeft(2, '0')}';
+      _daftarSel.add(Sel(nomor: nomorSel, kapasitas: kapasitasPerSel));
+    }
+  }
+
   List<Sel> selKosong() {
     return _daftarSel.where((sel) => !sel.isPenuh()).toList();
   }
 
-  // Menghitung total kapasitas seluruh sel di blok ini
   int totalKapasitasBlok() {
-    int total = 0;
-    for (var sel in _daftarSel) {
-      total += sel.kapasitas;
-    }
-    return total;
+    final total = _daftarSel.fold(0, (jumlah, sel) => jumlah + sel.kapasitas);
+    return total > 0 ? total : maksPenghuni;
   }
 
-  // Menghitung total penghuni saat ini di blok ini
-  int totalPenghuniBlok() {
-    int total = 0;
-    for (var sel in _daftarSel) {
-      total += sel.penghuni.length;
-    }
-    return total;
+  int totalPenghuniBlok() =>
+      _daftarSel.fold(0, (jumlah, sel) => jumlah + sel.penghuni.length);
+
+  /// Konversi dari Map SQLite ke Objek Blok
+  factory Blok.fromMap(Map<String, Object?> map) {
+    return Blok(
+      id: map['id'] as int?,
+      kode: map['nama_blok']?.toString() ?? '',
+      tingkatKeamanan: map['tingkat_keamanan']?.toString() ?? 'Menengah',
+      kapasitasSel: int.tryParse(map['kapasitas_sel']?.toString() ?? '8') ?? 8,
+      maksPenghuni:
+          int.tryParse(map['maks_penghuni']?.toString() ?? '48') ?? 48,
+    );
+  }
+
+  /// Konversi dari Objek Blok ke Map SQLite
+  Map<String, Object?> toMap() {
+    return {
+      if (id != null) 'id': id,
+      'nama_blok': _kode,
+      'kapasitas_sel': kapasitasSel,
+      'maks_penghuni': maksPenghuni,
+      'tingkat_keamanan': _tingkatKeamanan,
+    };
   }
 }

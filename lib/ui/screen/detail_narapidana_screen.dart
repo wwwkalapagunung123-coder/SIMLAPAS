@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../../helpers/database_helper.dart';
+import '../../controllers/narapidana_controller.dart';
+import '../../model/insiden.dart';
+import '../../model/narapidana.dart';
 
 class DetailNarapidanaScreen extends StatelessWidget {
   const DetailNarapidanaScreen({super.key, required this.narapidana});
 
-  final Map<String, dynamic> narapidana;
+  final Narapidana narapidana;
 
   @override
   Widget build(BuildContext context) {
-    final nama = narapidana['nama']?.toString() ?? 'Tanpa Nama';
-    final noReg = narapidana['no_reg']?.toString() ?? '-';
-    final blokSel = '${narapidana['blok']} / ${narapidana['sel']}';
-    final tglMasuk = narapidana['tanggal_masuk']?.toString() ?? '-';
-    final estimasiBebas = narapidana['estimasi_bebas']?.toString() ?? '-';
-    final status = narapidana['status']?.toString() ?? 'Aktif';
+    final controller = NarapidanaController();
+    final nama = narapidana.nama;
+    final noReg = narapidana.noRegistrasi;
+    final blokSel = '${narapidana.blok} / ${narapidana.selNomor}';
+    final tglMasuk = narapidana.tanggalMasuk.toIso8601String().substring(0, 10);
+    final estimasiBebas = narapidana.estimasiBebas.toIso8601String().substring(
+      0,
+      10,
+    );
+    final status = narapidana.status;
 
     return Scaffold(
       appBar: AppBar(
@@ -76,10 +82,8 @@ class DetailNarapidanaScreen extends StatelessWidget {
                         ),
                         const Divider(height: 24),
                         Expanded(
-                          child: FutureBuilder<List<Map<String, Object?>>>(
-                            future: DatabaseHelper.instance.getInsidenByNapi(
-                              noReg,
-                            ),
+                          child: FutureBuilder<List<Insiden>>(
+                            future: controller.muatInsiden(noReg),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
@@ -130,7 +134,7 @@ class DetailNarapidanaScreen extends StatelessWidget {
                                           runSpacing: 4,
                                           children: [
                                             Text(
-                                              'Tanggal: ${insiden['tanggal']}',
+                                              'Tanggal: ${insiden.tanggal}',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.bold,
@@ -138,7 +142,7 @@ class DetailNarapidanaScreen extends StatelessWidget {
                                               ),
                                             ),
                                             Text(
-                                              'Petugas: ${insiden['nip_petugas']}',
+                                              'Petugas: ${insiden.nipPetugas}',
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: Colors.grey[600],
@@ -148,8 +152,7 @@ class DetailNarapidanaScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          insiden['keterangan']?.toString() ??
-                                              '',
+                                          insiden.keterangan,
                                           style: const TextStyle(
                                             fontSize: 13,
                                             color: Color(0xFF101828),

@@ -3,11 +3,22 @@ import '../model/penjara.dart';
 import '../repositories/penjara_repository.dart';
 
 class PenjaraProvider with ChangeNotifier {
-  final Penjara _lapas = PenjaraRepository.getDummyData();
+  Penjara _lapas = PenjaraRepository.getDummyData();
+  bool _isLoading = false;
 
   Penjara get lapas => _lapas;
+  bool get isLoading => _isLoading;
 
-  // Fungsi untuk merefresh atau memperbarui data
+  Future<void> loadFromDatabase() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _lapas = await PenjaraRepository.loadPenjaraFromDatabase();
+    } catch (_) {}
+    _isLoading = false;
+    notifyListeners();
+  }
+
   void updateData() {
     notifyListeners();
   }

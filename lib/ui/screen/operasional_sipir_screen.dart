@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../helpers/database_helper.dart';
+import '../../controllers/operasional_sipir_controller.dart';
+import '../../controllers/blok_controller.dart';
+import '../../model/block.dart';
+import '../../model/narapidana.dart';
 
 class OperasionalSipirScreen extends StatefulWidget {
   const OperasionalSipirScreen({super.key, required this.loggedInUser});
@@ -12,6 +15,8 @@ class OperasionalSipirScreen extends StatefulWidget {
 }
 
 class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
+  final OperasionalSipirController _controller = OperasionalSipirController();
+  final BlokController _blokController = BlokController();
   final _namaNapiController = TextEditingController();
   final _noRegController = TextEditingController();
   final _keteranganInsidenController = TextEditingController();
@@ -35,7 +40,6 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
     final nama = _namaNapiController.text.trim();
     final noReg = _noRegController.text.trim();
     final keteranganInsiden = _keteranganInsidenController.text.trim();
-    final tanggalHariIni = DateTime.now().toIso8601String().substring(0, 10);
 
     if (nama.isEmpty ||
         noReg.isEmpty ||
@@ -46,26 +50,13 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
     }
 
     try {
-      await DatabaseHelper.instance.insertNarapidanaWithInsiden(
-        {
-          'no_reg': noReg,
-          'nama': nama,
-          'blok': _selectedBlokTujuan!,
-          'sel': _selectedSelTujuan!,
-          'tanggal_masuk': tanggalHariIni,
-          'estimasi_bebas': '2028-01-01',
-          'status': 'Aktif',
-        },
-        insiden: keteranganInsiden.isEmpty
-            ? null
-            : {
-                'no_reg': noReg,
-                'nama_napi': nama,
-                'nip_petugas':
-                    widget.loggedInUser['nip']?.toString() ?? 'SIPIR-01',
-                'keterangan': keteranganInsiden,
-                'tanggal': tanggalHariIni,
-              },
+      await _controller.simpanNarapidanaBaru(
+        nama: nama,
+        noReg: noReg,
+        blokNama: _selectedBlokTujuan!,
+        selNomor: _selectedSelTujuan!,
+        keteranganInsiden: keteranganInsiden.isEmpty ? null : keteranganInsiden,
+        nipPetugas: widget.loggedInUser['nip']?.toString() ?? 'SIPIR-01',
       );
     } catch (error, stackTrace) {
       debugPrint('Gagal menyimpan narapidana dan insiden: $error\n$stackTrace');
@@ -91,15 +82,9 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
     );
   }
 
-  Future<void> _ubahStatusNapi(
-    Map<String, Object?> napi,
-    String statusBaru,
-  ) async {
+  Future<void> _ubahStatusNapi(Narapidana napi, String statusBaru) async {
     try {
-      await DatabaseHelper.instance.updateNarapidana({
-        ...napi,
-        'status': statusBaru,
-      });
+      await _controller.ubahStatusNarapidana(napi.noRegistrasi, statusBaru);
     } catch (error, stackTrace) {
       debugPrint('Gagal memperbarui status narapidana: $error\n$stackTrace');
       if (mounted) _showMessage('Gagal memperbarui status narapidana.');
@@ -198,8 +183,8 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: FutureBuilder<List<Map<String, Object?>>>(
-        future: DatabaseHelper.instance.getNarapidanaByBlok(_blokJaga),
+      child: FutureBuilder<List<Narapidana>>(
+        future: _controller.muatNarapidanaByBlok(_blokJaga),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -275,9 +260,9 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // 1. Dropdown Pilih Blok Tujuan dari Database
-                FutureBuilder<List<Map<String, Object?>>>(
-                  future: DatabaseHelper.instance.getAllBlok(),
+                // 1. Dropdown Pilih Blok Tujuan
+                FutureBuilder<List<Blok>>(
+                  future: _blokController.muatSemuaBlok(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const LinearProgressIndicator();
@@ -296,7 +281,7 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
                       ),
                       isExpanded: true,
                       items: listBlok.map((b) {
-                        final namaBlok = b['nama_blok']?.toString() ?? '';
+                        final namaBlok = b.kode;
                         return DropdownMenuItem<String>(
                           value: namaBlok,
                           child: Text(
@@ -310,16 +295,12 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
                           _selectedBlokTujuan = val;
                           _selectedSelTujuan = null; // Reset pilihan sel
 
-                          final selectedBlokData = listBlok.firstWhere(
-                            (b) => b['nama_blok']?.toString() == val,
-                            orElse: () => <String, Object?>{},
-                          );
-                          final int jumlahSel =
-                              int.tryParse(
-                                selectedBlokData['kapasitas_sel']?.toString() ??
-                                    '8',
-                              ) ??
-                              8;
+                          final selectedBlokData = listBlok
+                              .where((blok) => blok.kode == val)
+                              .toList();
+                          final jumlahSel = selectedBlokData.isEmpty
+                              ? 0
+                              : selectedBlokData.first.kapasitasSel;
 
                           final prefix = val ?? 'A';
                           _listSelTersedia = List.generate(jumlahSel, (i) {
@@ -420,11 +401,11 @@ class _OperasionalSipirScreenState extends State<OperasionalSipirScreen> {
     );
   }
 
-  Widget _buildAbsenRow(Map<String, Object?> napi) {
-    final name = napi['nama']?.toString() ?? '';
-    final reg = napi['no_reg']?.toString() ?? '';
-    final sel = napi['sel']?.toString() ?? '';
-    final status = napi['status']?.toString() ?? 'Aktif';
+  Widget _buildAbsenRow(Narapidana napi) {
+    final name = napi.nama;
+    final reg = napi.noRegistrasi;
+    final sel = napi.selNomor;
+    final status = napi.status;
     final statusColor = status == 'Sakit' || status == 'Perlu pemeriksaan'
         ? Colors.amber
         : status == 'Tidak Hadir'

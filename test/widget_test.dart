@@ -7,10 +7,13 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:aplikasi_lapas/helpers/database_helper.dart';
 import 'package:aplikasi_lapas/main.dart';
+import 'package:aplikasi_lapas/controllers/narapidana_controller.dart';
+import 'package:aplikasi_lapas/model/narapidana.dart';
 import 'package:aplikasi_lapas/ui/screen/block_sel_screen.dart';
 import 'package:aplikasi_lapas/ui/screen/detail_narapidana_screen.dart';
 import 'package:aplikasi_lapas/ui/screen/narapidana_screen.dart';
 import 'package:aplikasi_lapas/ui/screen/operasional_sipir_screen.dart';
+import 'package:aplikasi_lapas/ui/screen/petugas_screen.dart';
 
 late Directory _testDatabaseDirectory;
 
@@ -73,7 +76,7 @@ void main() {
       await DatabaseHelper.instance.registerUser(
         nama: 'Dina Pratama',
         nip: '12345',
-        password: '12345',
+        password: 'password',
         role: 'Kepala Lapas',
       );
       expect(
@@ -278,6 +281,45 @@ void main() {
     }
   });
 
+  test(
+    'prisoner controller registers through service and repository',
+    () async {
+      final db = await DatabaseHelper.instance.database;
+      final suffix = DateTime.now().microsecondsSinceEpoch.toString();
+      final noReg = 'LAYER-$suffix';
+      final namaBlok = 'Blok LAYER-$suffix';
+      final estimasiBebas = DateTime(2027, 1, 1);
+
+      try {
+        await DatabaseHelper.instance.insertBlok({
+          'nama_blok': namaBlok,
+          'kapasitas_sel': 2,
+          'maks_penghuni': 12,
+          'tingkat_keamanan': 'Menengah',
+        });
+
+        final controller = NarapidanaController();
+        expect(
+          await controller.daftarkanNarapidana(
+            nama: 'Narapidana Layer',
+            noReg: noReg,
+            blokNama: namaBlok,
+            selNomor: '$namaBlok-01',
+            estimasiBebas: estimasiBebas,
+          ),
+          isTrue,
+        );
+
+        final napi = (await controller.muatNarapidanaByBlok(namaBlok)).single;
+        expect(napi.noRegistrasi, noReg);
+        expect(napi.estimasiBebas, estimasiBebas);
+      } finally {
+        await db.delete('narapidana', where: 'no_reg = ?', whereArgs: [noReg]);
+        await db.delete('blok', where: 'nama_blok = ?', whereArgs: [namaBlok]);
+      }
+    },
+  );
+
   testWidgets('editing prisoner keeps its block and cell selected', (
     WidgetTester tester,
   ) async {
@@ -405,17 +447,38 @@ void main() {
     await pumpScreen(const NarapidanaScreen());
     await pumpScreen(const BlokSelScreen());
     await pumpScreen(
-      const DetailNarapidanaScreen(
-        narapidana: {
-          'no_reg': 'TEST-DETAIL',
-          'nama': 'Nama Narapidana Uji',
-          'blok': 'Blok A',
-          'sel': 'A-01',
-          'tanggal_masuk': '2026-01-01',
-          'estimasi_bebas': '2027-01-01',
-          'status': 'Aktif',
-        },
+      DetailNarapidanaScreen(
+        narapidana: Narapidana(
+          nik: 'TEST-DETAIL',
+          nama: 'Nama Narapidana Uji',
+          noRegistrasi: 'TEST-DETAIL',
+          status: 'Aktif',
+          blok: 'Blok A',
+          selNomor: 'A-01',
+          tanggalMasuk: DateTime(2026, 1, 1),
+          estimasiBebas: DateTime(2027, 1, 1),
+        ),
       ),
     );
+  });
+
+  testWidgets('petugas screen loads typed petugas data', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: PetugasScreen())),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+
+    expect(find.text('Dina Pratama'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

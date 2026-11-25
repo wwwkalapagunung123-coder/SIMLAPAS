@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../helpers/database_helper.dart';
+import '../../model/block.dart';
+import '../../model/narapidana.dart';
+import '../../model/insiden.dart';
+import '../../controllers/blok_controller.dart';
+import '../../controllers/narapidana_controller.dart';
 import 'detail_narapidana_screen.dart';
 
 class NarapidanaScreen extends StatefulWidget {
@@ -11,33 +15,34 @@ class NarapidanaScreen extends StatefulWidget {
 }
 
 class _NarapidanaScreenState extends State<NarapidanaScreen> {
-  // Fungsi untuk menampilkan Dialog Form (Bisa untuk Tambah atau Edit)
+  final NarapidanaController _napiController = NarapidanaController();
+  final BlokController _blokController = BlokController();
   Future<void> _tampilkanFormNarapidana(
     BuildContext context, {
-    Map<String, Object?>? existingNapi,
+    Narapidana? existingNapi,
   }) async {
     final isEdit = existingNapi != null;
 
     final namaController = TextEditingController(
-      text: existingNapi?['nama']?.toString() ?? '',
+      text: existingNapi?.nama ?? '',
     );
     final noRegController = TextEditingController(
-      text: existingNapi?['no_reg']?.toString() ?? '',
+      text: existingNapi?.noRegistrasi ?? '',
     );
     final estimasiBebasController = TextEditingController(
-      text: existingNapi?['estimasi_bebas']?.toString() ?? '2028-01-01',
+      text:
+          existingNapi?.estimasiBebas.toIso8601String().substring(0, 10) ??
+          '2028-01-01',
     );
     final insidenController = TextEditingController();
-    Map<String, Object?>? selectedInsiden;
+    Insiden? selectedInsiden;
 
-    String? selectedBlok = existingNapi?['blok']?.toString();
-    String? selectedSel = existingNapi?['sel']?.toString();
-    final listBlokFuture = DatabaseHelper.instance.getAllBlok();
+    String? selectedBlok = existingNapi?.blok;
+    String? selectedSel = existingNapi?.selNomor;
+    final listBlokFuture = _blokController.muatSemuaBlok();
     final listInsidenFuture = isEdit
-        ? DatabaseHelper.instance.getInsidenByNapi(
-            existingNapi['no_reg']?.toString() ?? '',
-          )
-        : Future.value(<Map<String, Object?>>[]);
+        ? _napiController.muatInsiden(existingNapi.noRegistrasi)
+        : Future.value(<Insiden>[]);
 
     try {
       await showDialog<void>(
@@ -77,7 +82,7 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                         const SizedBox(height: 12),
 
                         // Dropdown Pilih Blok dari Database
-                        FutureBuilder<List<Map<String, Object?>>>(
+                        FutureBuilder<List<Blok>>(
                           future: listBlokFuture,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
@@ -96,19 +101,12 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                               );
                             }
 
-                            final selectedBlockData = listBlok.firstWhere(
-                              (block) =>
-                                  block['nama_blok']?.toString() ==
-                                  selectedBlok,
-                              orElse: () => <String, Object?>{},
-                            );
-                            final capacity =
-                                int.tryParse(
-                                  selectedBlockData['kapasitas_sel']
-                                          ?.toString() ??
-                                      '',
-                                ) ??
-                                0;
+                            final selectedBlockData = listBlok
+                                .where((block) => block.kode == selectedBlok)
+                                .toList();
+                            final capacity = selectedBlockData.isEmpty
+                                ? 0
+                                : selectedBlockData.first.kapasitasSel;
                             final selOptions = selectedBlockData.isEmpty
                                 ? <String>[]
                                 : List.generate(
@@ -121,10 +119,7 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                               selOptions.add(selectedSel!);
                             }
                             final blockOptions = listBlok
-                                .map(
-                                  (block) =>
-                                      block['nama_blok']?.toString() ?? '',
-                                )
+                                .map((block) => block.kode)
                                 .where((name) => name.isNotEmpty)
                                 .toSet();
 
@@ -203,7 +198,7 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          FutureBuilder<List<Map<String, Object?>>>(
+                          FutureBuilder<List<Insiden>>(
                             future: listInsidenFuture,
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
@@ -239,17 +234,14 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Tanggal: ${insiden['tanggal']} · Petugas: ${insiden['nip_petugas']}',
+                                            'Tanggal: ${insiden.tanggal} · Petugas: ${insiden.nipPetugas}',
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: Colors.red[800],
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(
-                                            insiden['keterangan']?.toString() ??
-                                                '',
-                                          ),
+                                          Text(insiden.keterangan),
                                           Align(
                                             alignment: Alignment.centerRight,
                                             child: TextButton(
@@ -257,14 +249,12 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                                                 setDialogState(() {
                                                   selectedInsiden = insiden;
                                                   insidenController.text =
-                                                      insiden['keterangan']
-                                                          ?.toString() ??
-                                                      '';
+                                                      insiden.keterangan;
                                                 });
                                               },
                                               child: Text(
-                                                selectedInsiden?['id'] ==
-                                                        insiden['id']
+                                                selectedInsiden?.id ==
+                                                        insiden.id
                                                     ? 'Dipilih untuk diedit'
                                                     : 'Edit catatan ini',
                                               ),
@@ -334,19 +324,6 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                         return;
                       }
 
-                      final dataNapi = <String, Object?>{
-                        if (isEdit) 'id': existingNapi['id'],
-                        'no_reg': noRegController.text.trim(),
-                        'nama': namaController.text.trim(),
-                        'blok': selectedBlok!,
-                        'sel': selectedSel!,
-                        'tanggal_masuk':
-                            existingNapi?['tanggal_masuk'] ??
-                            DateTime.now().toIso8601String().substring(0, 10),
-                        'estimasi_bebas': estimasiBebasController.text.trim(),
-                        'status': existingNapi?['status'] ?? 'Aktif',
-                      };
-
                       final keteranganInsiden = insidenController.text.trim();
                       if (selectedInsiden != null &&
                           keteranganInsiden.isEmpty) {
@@ -360,24 +337,28 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                         return;
                       }
 
-                      final dataInsiden = selectedInsiden != null
-                          ? <String, Object?>{
-                              'id': selectedInsiden!['id']!,
-                              'no_reg': noRegController.text.trim(),
-                              'keterangan': keteranganInsiden,
-                            }
-                          : null;
+                      final estimasiBebas = DateTime.parse(
+                        estimasiBebasController.text.trim(),
+                      );
 
                       try {
                         if (isEdit) {
-                          await DatabaseHelper.instance
-                              .updateNarapidanaWithInsiden(
-                                dataNapi,
-                                insiden: dataInsiden,
-                              );
+                          await _napiController.perbaruiDataNarapidana(
+                            dataLama: existingNapi,
+                            nama: namaController.text.trim(),
+                            blok: selectedBlok!,
+                            sel: selectedSel!,
+                            estimasiBebas: estimasiBebas,
+                            insidenTerpilih: selectedInsiden,
+                            keteranganInsiden: keteranganInsiden,
+                          );
                         } else {
-                          await DatabaseHelper.instance.insertNarapidana(
-                            dataNapi,
+                          await _napiController.daftarkanNarapidana(
+                            nama: namaController.text.trim(),
+                            noReg: noRegController.text.trim(),
+                            blokNama: selectedBlok!,
+                            selNomor: selectedSel!,
+                            estimasiBebas: estimasiBebas,
                           );
                         }
                       } catch (error, stackTrace) {
@@ -454,7 +435,7 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
             ),
             onPressed: () async {
               try {
-                await DatabaseHelper.instance.deleteNarapidana(id);
+                await _napiController.hapusNarapidana(id);
               } catch (error, stackTrace) {
                 debugPrint(
                   'Gagal menghapus data narapidana: $error\n$stackTrace',
@@ -559,8 +540,8 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
                         _buildTableHeader(),
                         const Divider(height: 1),
                         Expanded(
-                          child: FutureBuilder<List<Map<String, Object?>>>(
-                            future: DatabaseHelper.instance.getAllNarapidana(),
+                          child: FutureBuilder<List<Narapidana>>(
+                            future: _napiController.muatSemuaNarapidana(),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
@@ -647,15 +628,15 @@ class _NarapidanaScreenState extends State<NarapidanaScreen> {
     );
   }
 
-  Widget _buildRowItem(BuildContext context, Map<String, Object?> napi) {
-    final id = int.tryParse(napi['id'].toString()) ?? 0;
-    final reg = napi['no_reg']?.toString() ?? '';
-    final nama = napi['nama']?.toString() ?? '';
-    final blok = napi['blok']?.toString() ?? '';
-    final sel = napi['sel']?.toString() ?? '';
-    final masuk = napi['tanggal_masuk']?.toString() ?? '';
-    final bebas = napi['estimasi_bebas']?.toString() ?? '';
-    final status = napi['status']?.toString() ?? 'Aktif';
+  Widget _buildRowItem(BuildContext context, Narapidana napi) {
+    final id = napi.id ?? 0;
+    final reg = napi.noRegistrasi;
+    final nama = napi.nama;
+    final blok = napi.blok;
+    final sel = napi.selNomor;
+    final masuk = napi.tanggalMasuk.toIso8601String().substring(0, 10);
+    final bebas = napi.estimasiBebas.toIso8601String().substring(0, 10);
+    final status = napi.status;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

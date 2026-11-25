@@ -6,16 +6,18 @@ import 'laporan.dart';
 class Penjara implements Laporan {
   String nama;
   final String alamat;
-  List<Blok> daftarBlok = [];
+  final List<Blok> _daftarBlok = [];
 
   Penjara({required this.nama, required this.alamat});
 
+  List<Blok> get daftarBlok => List.unmodifiable(_daftarBlok);
+
   void tambahBlok(Blok blok) {
-    daftarBlok.add(blok);
+    if (!_daftarBlok.contains(blok)) _daftarBlok.add(blok);
   }
 
   Narapidana? cariNarapidana(String noReg) {
-    for (var blok in daftarBlok) {
+    for (var blok in _daftarBlok) {
       for (var sel in blok.daftarSel) {
         for (var napi in sel.penghuni) {
           if (napi.noRegistrasi == noReg) return napi;
@@ -25,15 +27,9 @@ class Penjara implements Laporan {
     return null;
   }
 
-  int totalPenghuni() {
-    int total = 0;
-    for (var blok in daftarBlok) {
-      for (var sel in blok.daftarSel) {
-        total += sel.penghuni.length;
-      }
-    }
-    return total;
-  }
+  int totalPenghuni() => _daftarBlok
+      .expand((blok) => blok.daftarSel)
+      .fold(0, (total, sel) => total + sel.penghuni.length);
 
   @override
   String buatLaporan() {

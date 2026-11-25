@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../main_layout.dart';
-import '../../helpers/database_helper.dart';
+import '../../controllers/login_controller.dart';
+import '../../model/petugas.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final LoginController _loginController = LoginController();
   static String? _rememberedUsername;
 
   bool _obscurePassword = true;
@@ -43,9 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    Map<String, Object?>? user;
+    Petugas? userPetugas;
     try {
-      user = await DatabaseHelper.instance.loginUser(username, password);
+      userPetugas = await _loginController.prosesLogin(username, password);
     } catch (error, stackTrace) {
       debugPrint('Login gagal mengakses database: $error\n$stackTrace');
       if (!mounted) return;
@@ -62,10 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
 
-    if (user != null) {
-      final namaUser = user['nama'] as String;
-      final role = user['role'] as String;
-      final blok = user['blok'] as String? ?? '-';
+    if (userPetugas != null) {
+      final namaUser = userPetugas.nama;
+      final role = userPetugas.jabatan;
+      final blok = userPetugas.blokJaga;
       final jabatanInfo = role == 'Sipir'
           ? 'Sipir Jaga · $blok'
           : 'Kepala Lapas';
@@ -82,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (context) => MainLayout(
             namaUser: namaUser,
             jabatanUser: jabatanInfo,
-            loggedInUser: user!,
+            loggedInUser: userPetugas!.toMap(),
           ),
         ),
       );
@@ -218,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 setStateDialog(() => isRegistering = true);
                 final messenger = ScaffoldMessenger.of(context);
                 try {
-                  await DatabaseHelper.instance.registerUser(
+                  await _loginController.prosesRegister(
                     nama: regNama.text.trim(),
                     nip: regNip.text.trim(),
                     password: regPass.text,

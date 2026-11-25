@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../helpers/database_helper.dart';
+import '../../controllers/blok_controller.dart';
+import '../../controllers/petugas_controller.dart';
+import '../../model/block.dart';
+import '../../model/petugas.dart';
 
 class PetugasScreen extends StatefulWidget {
   const PetugasScreen({super.key});
@@ -9,33 +12,18 @@ class PetugasScreen extends StatefulWidget {
 }
 
 class _PetugasScreenState extends State<PetugasScreen> {
+  final PetugasController _petugasController = PetugasController();
+  final BlokController _blokController = BlokController();
   // Fungsi Dialog Edit Penugasan (Mendukung: Tidak Bertugas, Blok Saja, atau Blok + Sel)
-  void _tampilkanFormEditPetugas(
-    BuildContext context,
-    Map<String, Object?> petugas,
-  ) {
-    final id = int.tryParse(petugas['id'].toString()) ?? 0;
-    final nama = petugas['nama']?.toString() ?? '';
-    final nip = petugas['nip']?.toString() ?? '';
-    final password = petugas['password']?.toString() ?? '123456';
-    final role = petugas['role']?.toString() ?? 'Sipir';
+  void _tampilkanFormEditPetugas(BuildContext context, Petugas petugas) {
+    final id = petugas.id ?? 0;
+    final nama = petugas.nama;
+    final nip = petugas.nip;
+    final role = petugas.jabatan;
+    String? selectedBlok = petugas.isBertugas ? petugas.blokJaga : null;
+    String? selectedSel = petugas.selJaga;
 
-    // Membaca data blok lama dari database
-    final rawBlok = petugas['blok']?.toString() ?? '';
-    String? selectedBlok;
-    String? selectedSel;
-
-    if (rawBlok.contains(' / ')) {
-      final parts = rawBlok.split(' / ');
-      selectedBlok = parts[0].trim();
-      selectedSel = parts[1].trim();
-    } else if (rawBlok.isNotEmpty &&
-        rawBlok != '-' &&
-        rawBlok != 'Tidak Bertugas') {
-      selectedBlok = rawBlok.trim();
-    }
-
-    final listBlokFuture = DatabaseHelper.instance.getAllBlok();
+    final listBlokFuture = _blokController.muatSemuaBlok();
 
     showDialog(
       context: context,
@@ -59,7 +47,7 @@ class _PetugasScreenState extends State<PetugasScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      FutureBuilder<List<Map<String, Object?>>>(
+                      FutureBuilder<List<Blok>>(
                         future: listBlokFuture,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
@@ -76,22 +64,17 @@ class _PetugasScreenState extends State<PetugasScreen> {
 
                           // Opsi pilihan blok ditambah opsi "-- Tidak Bertugas / Tanpa Blok --"
                           final blockOptions = listBlok
-                              .map((b) => b['nama_blok']?.toString() ?? '')
+                              .map((b) => b.kode)
                               .where((name) => name.isNotEmpty)
                               .toList();
 
-                          final selectedBlockData = listBlok.firstWhere(
-                            (b) => b['nama_blok']?.toString() == selectedBlok,
-                            orElse: () => <String, Object?>{},
-                          );
+                          final selectedBlockData = listBlok
+                              .where((b) => b.kode == selectedBlok)
+                              .toList();
 
-                          final int kapasitasSel =
-                              int.tryParse(
-                                selectedBlockData['kapasitas_sel']
-                                        ?.toString() ??
-                                    '0',
-                              ) ??
-                              0;
+                          final kapasitasSel = selectedBlockData.isEmpty
+                              ? 0
+                              : selectedBlockData.first.kapasitasSel;
 
                           final selOptions = selectedBlockData.isEmpty
                               ? <String>[]
@@ -218,10 +201,6 @@ class _PetugasScreenState extends State<PetugasScreen> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
-                    // Menentukan format penyimpanan berdasarkan pilihan:
-                    // 1. Jika tidak pilih blok sama sekali -> '-' (Tidak Bertugas)
-                    // 2. Jika pilih blok saja -> 'Blok A'
-                    // 3. Jika pilih blok dan sel -> 'Blok A / A-01'
                     String penugasanTersimpan = '-';
                     if (selectedBlok != null) {
                       penugasanTersimpan = selectedSel != null
@@ -229,13 +208,9 @@ class _PetugasScreenState extends State<PetugasScreen> {
                           : selectedBlok!;
                     }
 
-                    await DatabaseHelper.instance.updateUser(
+                    await _petugasController.perbaruiPenugasanBlok(
                       id: id,
-                      nama: nama,
-                      nip: nip,
-                      password: password,
-                      role: role,
-                      blok: penugasanTersimpan,
+                      penugasan: penugasanTersimpan,
                     );
 
                     if (!context.mounted) return;
@@ -296,8 +271,8 @@ class _PetugasScreenState extends State<PetugasScreen> {
           ),
           const SizedBox(height: 24),
           Expanded(
-            child: FutureBuilder<List<Map<String, Object?>>>(
-              future: DatabaseHelper.instance.getAllUsers(),
+            child: FutureBuilder<List<Petugas>>(
+              future: _petugasController.muatSemuaPetugas(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -311,21 +286,14 @@ class _PetugasScreenState extends State<PetugasScreen> {
                 final listPetugas = snapshot.data ?? [];
 
                 int totalPetugas = listPetugas.length;
-                int jumlahKalapas = listPetugas
-                    .where((p) => p['role'] == 'Kepala Lapas')
+                final jumlahKalapas = listPetugas
+                    .where((petugas) => petugas.jabatan == 'Kepala Lapas')
                     .length;
-                int jumlahSipir = listPetugas
-                    .where((p) => p['role'] == 'Sipir')
+                final jumlahSipir = listPetugas
+                    .where((petugas) => petugas.jabatan == 'Sipir')
                     .length;
-
-                // Menghitung petugas yang benar-benar memiliki tugas (tidak '-')
-                int sedangBertugas = listPetugas
-                    .where(
-                      (p) =>
-                          p['blok'] != null &&
-                          p['blok'] != '-' &&
-                          p['blok'] != '',
-                    )
+                final sedangBertugas = listPetugas
+                    .where((petugas) => petugas.isBertugas)
                     .length;
 
                 return Column(
@@ -369,26 +337,17 @@ class _PetugasScreenState extends State<PetugasScreen> {
                                 itemCount: listPetugas.length,
                                 itemBuilder: (context, index) {
                                   final petugas = listPetugas[index];
-                                  final nama =
-                                      petugas['nama']?.toString() ?? '';
-                                  final nip = petugas['nip']?.toString() ?? '';
-                                  final jabatan =
-                                      petugas['role']?.toString() ?? '';
-                                  final blok =
-                                      petugas['blok']?.toString() ?? '-';
-
-                                  // Status label dinamis (jika '-' maka 'Tidak Bertugas')
-                                  final statusLabel =
-                                      (blok == '-' || blok.isEmpty)
-                                      ? 'Tidak Bertugas'
-                                      : 'Bertugas';
+                                  final blok = petugas.labelPenugasan;
+                                  final statusLabel = petugas.isBertugas
+                                      ? 'Bertugas'
+                                      : 'Tidak Bertugas';
 
                                   return _buildPetugasRow(
                                     context,
                                     petugas,
-                                    nama,
-                                    nip,
-                                    jabatan,
+                                    petugas.nama,
+                                    petugas.nip,
+                                    petugas.jabatan,
                                     'Reguler',
                                     blok,
                                     statusLabel,
@@ -440,7 +399,7 @@ class _PetugasScreenState extends State<PetugasScreen> {
 
   Widget _buildPetugasRow(
     BuildContext context,
-    Map<String, Object?> petugas,
+    Petugas petugas,
     String name,
     String nip,
     String jabatan,

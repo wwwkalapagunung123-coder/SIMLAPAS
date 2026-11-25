@@ -8,25 +8,22 @@ class Sel {
 
   Sel({required this.nomor, required this.kapasitas});
 
-  List<Narapidana> get penghuni => _penghuni;
+  List<Narapidana> get penghuni => List.unmodifiable(_penghuni);
 
-  // Metode untuk mengecek apakah sel penuh
-  bool isPenuh() {
-    return _penghuni.length >= kapasitas;
-  }
+  bool isPenuh() => _penghuni.length >= kapasitas;
 
-  // Metode memasukkan narapidana ke sel
   bool masukkan(Narapidana napi) {
-    if (!isPenuh()) {
-      _penghuni.add(napi);
-      napi.pindahSel(this); // Mengubah referensi sel pada napi
-      return true;
-    }
-    return false; // Gagal karena penuh
+    if (_penghuni.contains(napi)) return true;
+    if (isPenuh()) return false;
+
+    napi.sel?.keluarkan(napi);
+    _penghuni.add(napi);
+    napi.perbaruiSel(this);
+    return true;
   }
 
-  // Metode mengeluarkan narapidana dari sel
   void keluarkan(Narapidana napi) {
     _penghuni.remove(napi);
+    if (identical(napi.sel, this)) napi.perbaruiSel(null);
   }
 }
